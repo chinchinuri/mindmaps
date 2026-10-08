@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MindMap .MM Редактор</title>
+  <title>MindMap .MM Pro Editor</title>
 
   <!-- Шрифти та іконки -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- jsMind CSS & JS (стабільна бібліотека з нативною підтримкою .mm) -->
+  <!-- jsMind CSS & JS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.8.6/style/jsmind.css" />
   <script src="https://cdn.jsdelivr.net/npm/jsmind@0.8.6/es6/jsmind.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsmind@0.8.6/es6/jsmind.draggable-node.js"></script>
@@ -19,29 +19,28 @@
   <style>
     :root {
       --bg-primary: #f8fafc;
-      --bg-surface: rgba(255, 255, 255, 0.92);
+      --bg-surface: rgba(255, 255, 255, 0.95);
       --border-color: #cbd5e1;
       --text-primary: #0f172a;
+      --text-secondary: #64748b;
       --accent: #2563eb;
       --accent-hover: #1d4ed8;
       --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      --sidebar-width: 320px;
     }
 
     [data-theme='dark'] {
       --bg-primary: #0f172a;
-      --bg-surface: rgba(30, 41, 59, 0.92);
+      --bg-surface: rgba(30, 41, 59, 0.95);
       --border-color: #334155;
       --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
       --accent: #3b82f6;
       --accent-hover: #60a5fa;
       --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
       width: 100%;
@@ -56,15 +55,16 @@
       width: 100vw;
       height: 100vh;
       position: relative;
+      display: flex;
     }
 
-    /* Плаваюча панель інструментів */
+    /* Верхня панель інструментів */
     .toolbar {
       position: absolute;
       top: 16px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 1000;
+      z-index: 100;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -82,7 +82,7 @@
       gap: 6px;
       font-weight: 700;
       font-size: 14px;
-      margin-right: 10px;
+      margin-right: 8px;
     }
 
     .badge {
@@ -109,330 +109,698 @@
       font-family: inherit;
     }
 
-    .btn:hover {
-      background: rgba(0, 0, 0, 0.05);
+    .btn:hover { background: rgba(0, 0, 0, 0.05); }
+    [data-theme='dark'] .btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-icon { padding: 6px 8px; border-radius: 50%; }
+    .divider { width: 1px; height: 20px; background: var(--border-color); }
+
+    /* Випадаюче меню експорту */
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background: var(--bg-surface);
+      min-width: 180px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 1000;
+    }
+    .dropdown-content a {
+      color: var(--text-primary);
+      padding: 10px 14px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .dropdown-content a:hover { background: rgba(0, 0, 0, 0.05); }
+    [data-theme='dark'] .dropdown-content a:hover { background: rgba(255, 255, 255, 0.1); }
+    .dropdown:hover .dropdown-content { display: block; }
+
+    /* Полотно карти та шар перехресних стрілок */
+    #map-wrapper {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
     }
 
-    [data-theme='dark'] .btn:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-hover);
-    }
-
-    .btn-icon {
-      padding: 6px 8px;
-      border-radius: 50%;
-    }
-
-    .divider {
-      width: 1px;
-      height: 20px;
-      background: var(--border-color);
-    }
-
-    /* Контейнер карти */
     #jsmind_container {
       width: 100%;
       height: 100%;
       background-color: var(--bg-primary);
     }
 
-    /* Адаптація стилів вузлів під теми */
-    [data-theme='dark'] jmnode {
-      color: #f8fafc !important;
-      background-color: #1e293b !important;
-      border-color: #475569 !important;
-    }
-
-    [data-theme='dark'] jmnode.root {
-      background-color: #2563eb !important;
-      color: #ffffff !important;
-    }
-
-    [data-theme='dark'] jmnode.selected {
-      background-color: #3b82f6 !important;
-      color: #ffffff !important;
-    }
-
-    /* Підказка по центру знизу */
-    .hint-bar {
+    #arrows-svg {
       position: absolute;
-      bottom: 16px;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Бічний інспектор (Node Inspector) */
+    .inspector {
+      width: var(--sidebar-width);
+      height: 100%;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: transform 0.3s ease;
+      transform: translateX(100%);
+      position: absolute;
+      right: 0;
+      top: 0;
+    }
+
+    .inspector.open {
+      transform: translateX(0);
+      position: relative;
+    }
+
+    .inspector-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inspector-body {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .palette {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .color-swatch:hover { transform: scale(1.15); }
+
+    .emoji-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .emoji-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* Повідомлення про режим створення зв'язку */
+    .link-mode-banner {
+      position: absolute;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 12px;
-      color: var(--text-primary);
-      z-index: 1000;
+      background: #f59e0b;
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 13px;
       box-shadow: var(--shadow);
-      pointer-events: none;
+      z-index: 1000;
+      display: none;
     }
 
-    kbd {
-      background: rgba(0, 0, 0, 0.08);
-      padding: 2px 5px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-weight: 600;
-    }
-
-    [data-theme='dark'] kbd {
-      background: rgba(255, 255, 255, 0.15);
+    /* Стилі для друку / PDF */
+    @media print {
+      .toolbar, .inspector, .link-mode-banner { display: none !important; }
+      #map-wrapper { width: 100vw !important; height: 100vh !important; }
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- Меню інструментів -->
-    <header class="toolbar">
-      <div class="brand">
-        <span>🧠 MindMap</span>
-        <span class="badge">.mm</span>
+    <!-- Робоча зона з картою та SVG лініями зв'язків -->
+    <div id="map-wrapper">
+      <!-- Верхнє меню -->
+      <header class="toolbar">
+        <div class="brand">
+          <span>🧠 MindMap</span>
+          <span class="badge">PRO</span>
+        </div>
+
+        <button id="btn-new" class="btn"><i data-lucide="file-plus" style="width:15px"></i> Нова</button>
+        <button id="btn-open" class="btn"><i data-lucide="folder-open" style="width:15px"></i> Відкрити</button>
+        <button id="btn-save" class="btn btn-primary"><i data-lucide="save" style="width:15px"></i> Зберегти .mm</button>
+
+        <!-- Меню експорту -->
+        <div class="dropdown">
+          <button class="btn"><i data-lucide="share-2" style="width:15px"></i> Експорт ▼</button>
+          <div class="dropdown-content">
+            <a id="exp-mm"><i data-lucide="code" style="width:14px"></i> Формат .mm (FreeMind)</a>
+            <a id="exp-md"><i data-lucide="file-text" style="width:14px"></i> Markdown (.md)</a>
+            <a id="exp-doc"><i data-lucide="book-open" style="width:14px"></i> Документ Word (.doc)</a>
+            <a id="exp-html"><i data-lucide="globe" style="width:14px"></i> Веб-сторінка (.html)</a>
+            <a id="exp-png"><i data-lucide="image" style="width:14px"></i> Зображення (.png)</a>
+            <a id="exp-pdf"><i data-lucide="printer" style="width:14px"></i> Друк / Зберегти PDF</a>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <button id="btn-add-child" class="btn" title="Дочірній вузол (Tab)"><i data-lucide="corner-down-right" style="width:15px"></i> + Вузол</button>
+        <button id="btn-delete" class="btn" title="Видалити (Del)"><i data-lucide="trash-2" style="width:15px"></i></button>
+
+        <div class="divider"></div>
+
+        <button id="btn-theme" class="btn btn-icon"><i data-lucide="moon" style="width:15px"></i></button>
+      </header>
+
+      <!-- Контейнер jsMind -->
+      <div id="jsmind_container"></div>
+
+      <!-- Шар для перехресних зв'язків (SVG) -->
+      <svg id="arrows-svg">
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#3b82f6" />
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <!-- Бічна панель інспектора властивостей вузла -->
+    <aside id="inspector" class="inspector">
+      <div class="inspector-header">
+        <h4>Властивості вузла</h4>
+        <button id="btn-close-inspector" class="btn btn-icon"><i data-lucide="x" style="width:16px"></i></button>
       </div>
 
-      <button id="btn-new" class="btn" title="Створити нову карту">
-        <i data-lucide="file-plus" style="width:16px;height:16px;"></i> Нова
-      </button>
+      <div class="inspector-body">
+        <div class="form-group">
+          <label>Текст вузла</label>
+          <input type="text" id="node-text" class="form-control" />
+        </div>
 
-      <button id="btn-open" class="btn" title="Відкрити .mm файл">
-        <i data-lucide="folder-open" style="width:16px;height:16px;"></i> Відкрити
-      </button>
+        <div class="form-group">
+          <label>Швидка іконка / Емодзі</label>
+          <div class="emoji-bar">
+            <button class="emoji-btn" data-emoji="🔥">🔥</button>
+            <button class="emoji-btn" data-emoji="💡">💡</button>
+            <button class="emoji-btn" data-emoji="🚀">🚀</button>
+            <button class="emoji-btn" data-emoji="📌">📌</button>
+            <button class="emoji-btn" data-emoji="✅">✅</button>
+            <button class="emoji-btn" data-emoji="⚠️">⚠️</button>
+            <button class="emoji-btn" data-emoji="">❌ Очистити</button>
+          </div>
+        </div>
 
-      <button id="btn-save" class="btn btn-primary" title="Зберегти .mm (Ctrl+S)">
-        <i data-lucide="download" style="width:16px;height:16px;"></i> Завантажити .mm
-      </button>
+        <div class="form-group">
+          <label>Колір фону вузла</label>
+          <div class="palette">
+            <div class="color-swatch" style="background:#fee2e2" data-color="#fee2e2"></div>
+            <div class="color-swatch" style="background:#fef3c7" data-color="#fef3c7"></div>
+            <div class="color-swatch" style="background:#dcfce7" data-color="#dcfce7"></div>
+            <div class="color-swatch" style="background:#e0e7ff" data-color="#e0e7ff"></div>
+            <div class="color-swatch" style="background:#f3e8ff" data-color="#f3e8ff"></div>
+            <div class="color-swatch" style="background:#ffffff" data-color="#ffffff"></div>
+          </div>
+        </div>
 
-      <div class="divider"></div>
+        <div class="form-group">
+          <label>Посилання (URL або файл)</label>
+          <div style="display:flex;gap:6px;">
+            <input type="url" id="node-link" class="form-control" placeholder="https://example.com" />
+            <button id="btn-open-link" class="btn" title="Перейти"><i data-lucide="external-link" style="width:14px"></i></button>
+          </div>
+        </div>
 
-      <button id="btn-add-child" class="btn" title="Додати дочірній вузол (Tab)">
-        <i data-lucide="corner-down-right" style="width:16px;height:16px;"></i> Дочірній
-      </button>
+        <div class="form-group">
+          <label>Опис / Детальна нотатка</label>
+          <textarea id="node-note" class="form-control" placeholder="Введіть розширений опис..."></textarea>
+        </div>
 
-      <button id="btn-delete" class="btn" title="Видалити вузол (Del)">
-        <i data-lucide="trash-2" style="width:16px;height:16px;"></i> Видалити
-      </button>
+        <div class="divider"></div>
 
-      <div class="divider"></div>
+        <div class="form-group">
+          <label>Перехресні зв'язки (Стрілки)</label>
+          <button id="btn-link-nodes" class="btn" style="justify-content:center;">
+            <i data-lucide="git-commit" style="width:14px"></i> Створити стрілку до...
+          </button>
+          <button id="btn-clear-arrows" class="btn" style="justify-content:center;margin-top:4px;">
+            <i data-lucide="unlink" style="width:14px"></i> Видалити вихідні стрілки
+          </button>
+        </div>
+      </div>
+    </aside>
 
-      <button id="btn-theme" class="btn btn-icon" title="Змінити тему">
-        <i data-lucide="moon" style="width:16px;height:16px;"></i>
-      </button>
-    </header>
-
-    <!-- Полотно для відображення ментальної карти -->
-    <div id="jsmind_container"></div>
+    <!-- Баннер вибору цільового вузла для зв'язку -->
+    <div id="link-banner" class="link-mode-banner">
+      👉 Клікніть на вузол, до якого потрібно провести стрілку
+    </div>
 
     <input type="file" id="file-input" accept=".mm,.xml" style="display: none;" />
-
-    <div class="hint-bar">
-      💡 <kbd>Подвійний клік</kbd> — редагувати текст | <kbd>Tab</kbd> — новий вузол | <kbd>Del</kbd> — видалити | <kbd>Ctrl+S</kbd> — зберегти
-    </div>
   </div>
 
   <script>
-    // 1. Початковий стан у форматі FreeMind .mm XML
-    const defaultMmXml = `<?xml version="1.0" encoding="UTF-8"?>
+    // --- 1. СТРУКТУРА ДАНИХ ТА ЗБЕРЕЖЕННЯ ---
+    let nodeMeta = {}; // { [id]: { note: string, link: string, emoji: string, bgColor: string } }
+    let crossLinks = []; // [ { from: id, to: id, color: string } ]
+    let linkingSourceNode = null;
+    let selectedNode = null;
+    let currentFileName = 'mindmap.mm';
+
+    // Початкова карта
+    const initialXml = `<?xml version="1.0" encoding="UTF-8"?>
 <map version="1.0.1">
   <node ID="root" TEXT="Головна ідея">
-    <node ID="node_1" TEXT="Гілка 1">
-      <node ID="node_1_1" TEXT="Підпункт А"/>
-      <node ID="node_1_2" TEXT="Підпункт Б"/>
+    <node ID="node_1" TEXT="🚀 План проєкту" BACKGROUND_COLOR="#e0e7ff" LINK="https://github.com">
+      <richcontent TYPE="NOTE"><html><body><p>Це детальний опис плану нашого проєкту.</p></body></html></richcontent>
+      <node ID="node_1_1" TEXT="Аналітика"/>
     </node>
-    <node ID="node_2" TEXT="Гілка 2"/>
-    <node ID="node_3" TEXT="Гілка 3"/>
+    <node ID="node_2" TEXT="💡 Дослідження" BACKGROUND_COLOR="#fef3c7"/>
+    <arrowlink DESTINATION="node_2" />
   </node>
 </map>`;
 
-    let currentFileName = 'mindmap.mm';
-
-    // 2. Ініціалізація jsMind
-    const options = {
+    // --- 2. ІНІЦІАЛІЗАЦІЯ JSMIND ---
+    const jm = new jsMind({
       container: 'jsmind_container',
       theme: 'orange',
       editable: true,
-      view: {
-        engine: 'canvas',
-        node_overflow: 'wrap'
-      },
-      shortcut: {
-        enable: true,
-        handles: {
-          addChild: (jm) => {
-            const selected = jm.get_selected_node();
-            if (selected) {
-              const nodeid = 'node_' + Math.random().toString(36).substring(2, 8);
-              jm.add_node(selected, nodeid, 'Новий вузол');
-            }
+      view: { engine: 'canvas', node_overflow: 'wrap' },
+      shortcut: { enable: true, mapping: { addchild: [9], delnode: [46] } }
+    });
+
+    // --- 3. ПОВНИЙ ДВОСТОРОННІЙ ПАРСЕР .MM ---
+    function parseMmXml(xmlString) {
+      const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
+      nodeMeta = {};
+      crossLinks = [];
+
+      function parseNode(xmlNode) {
+        const id = xmlNode.getAttribute('ID') || 'node_' + Math.random().toString(36).substring(2, 8);
+        const text = xmlNode.getAttribute('TEXT') || xmlNode.querySelector(':scope > richcontent[TYPE="NODE"]')?.textContent?.trim() || 'Вузол';
+        const link = xmlNode.getAttribute('LINK') || '';
+        const bgColor = xmlNode.getAttribute('BACKGROUND_COLOR') || '';
+
+        // Читання розширеної нотатки
+        const noteEl = xmlNode.querySelector(':scope > richcontent[TYPE="NOTE"]');
+        const note = noteEl ? noteEl.textContent.trim() : '';
+
+        nodeMeta[id] = { note, link, bgColor };
+
+        // Читання перехресних стрілок <arrowlink>
+        const arrows = xmlNode.querySelectorAll(':scope > arrowlink');
+        arrows.forEach(arr => {
+          const dest = arr.getAttribute('DESTINATION');
+          if (dest) crossLinks.push({ from: id, to: dest });
+        });
+
+        const children = [];
+        Array.from(xmlNode.children).forEach(child => {
+          if (child.tagName.toLowerCase() === 'node') {
+            children.push(parseNode(child));
           }
-        },
-        mapping: {
-          addchild: [9],       // Tab
-          addbrother: [13],    // Enter
-          editnode: [32, 113], // Пробіл або F2
-          delnode: [46]        // Delete
-        }
+        });
+
+        return { id, topic: (link ? '🔗 ' : '') + text, children };
       }
-    };
 
-    const jm = new jsMind(options);
-
-    // Завантаження збереженої або стандартної карти
-    const savedXml = localStorage.getItem('jsmind_mm_cache') || defaultMmXml;
-    try {
-      jm.show({ meta: { name: 'MindMap' }, format: 'freemind', data: savedXml });
-    } catch (e) {
-      jm.show({ meta: { name: 'MindMap' }, format: 'freemind', data: defaultMmXml });
+      const root = doc.querySelector('map > node');
+      if (!root) throw new Error('Не знайдено корінь карти');
+      return { meta: { name: 'MindMap' }, format: 'node_tree', data: parseNode(root) };
     }
 
-    // Автозбереження в LocalStorage при змінах
-    function autoSave() {
+    function generateMmXml() {
+      const root = jm.get_root();
+      function nodeToXml(node) {
+        const meta = nodeMeta[node.id] || {};
+        let text = node.topic.replace(/^🔗\s*/, '');
+        let attrs = `ID="${node.id}" TEXT="${escapeXml(text)}"`;
+        if (meta.bgColor) attrs += ` BACKGROUND_COLOR="${meta.bgColor}"`;
+        if (meta.link) attrs += ` LINK="${escapeXml(meta.link)}"`;
+
+        let xml = `<node ${attrs}>`;
+        if (meta.note) {
+          xml += `\n<richcontent TYPE="NOTE"><html><body><p>${escapeXml(meta.note)}</p></body></html></richcontent>`;
+        }
+
+        crossLinks.filter(l => l.from === node.id).forEach(l => {
+          xml += `\n<arrowlink DESTINATION="${l.to}"/>`;
+        });
+
+        (node.children || []).forEach(child => {
+          xml += '\n' + nodeToXml(child);
+        });
+
+        xml += '\n</node>';
+        return xml;
+      }
+
+      return `<?xml version="1.0" encoding="UTF-8"?>\n<map version="1.0.1">\n${nodeToXml(root)}\n</map>`;
+    }
+
+    function escapeXml(unsafe) {
+      return (unsafe || '').replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));
+    }
+
+    // Завантаження даних
+    function loadMapFromXml(xml) {
       try {
-        const freemindData = jm.get_data('freemind');
-        if (freemindData && freemindData.data) {
-          localStorage.setItem('jsmind_mm_cache', freemindData.data);
-        }
+        const treeData = parseMmXml(xml);
+        jm.show(treeData);
+        // Застосовуємо кольори до вузлів
+        Object.keys(nodeMeta).forEach(id => {
+          if (nodeMeta[id].bgColor) {
+            jm.set_node_color(id, nodeMeta[id].bgColor, null);
+          }
+        });
+        setTimeout(renderArrows, 200);
       } catch (err) {
-        console.error('Помилка автозбереження:', err);
+        alert('Помилка читання XML: ' + err.message);
       }
     }
 
-    // Слухаємо події для збереження
-    setInterval(autoSave, 2000);
+    // --- 4. РЕНДЕРИНГ ПЕРЕХРЕСНИХ СТРІЛОК (SVG) ---
+    function renderArrows() {
+      const svg = document.getElementById('arrows-svg');
+      svg.querySelectorAll('path').forEach(p => p.remove());
 
-    // 3. Кнопки управління
-    // Створити нову
-    document.getElementById('btn-new').addEventListener('click', () => {
-      if (confirm('Створити чисту карту? Незбережені зміни буде втрачено.')) {
-        jm.show({ meta: { name: 'MindMap' }, format: 'freemind', data: defaultMmXml });
-        localStorage.removeItem('jsmind_mm_cache');
+      crossLinks.forEach(link => {
+        const elFrom = document.querySelector(`jmnode[nodeid="${link.from}"]`);
+        const elTo = document.querySelector(`jmnode[nodeid="${link.to}"]`);
+        if (!elFrom || !elTo) return;
+
+        const r1 = elFrom.getBoundingClientRect();
+        const r2 = elTo.getBoundingClientRect();
+        const cont = document.getElementById('map-wrapper').getBoundingClientRect();
+
+        const x1 = r1.left + r1.width / 2 - cont.left;
+        const y1 = r1.top + r1.height / 2 - cont.top;
+        const x2 = r2.left + r2.width / 2 - cont.left;
+        const y2 = r2.top + r2.height / 2 - cont.top;
+
+        const dx = (x2 - x1) * 0.4;
+        const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', pathData);
+        path.setAttribute('stroke', '#3b82f6');
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-dasharray', '5,5');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('marker-end', 'url(#arrowhead)');
+        svg.appendChild(path);
+      });
+    }
+
+    // Оновлення положення стрілок при скролі чи взаємодії
+    document.getElementById('jsmind_container').addEventListener('scroll', renderArrows);
+    window.addEventListener('resize', renderArrows);
+    jm.add_event_listener(() => setTimeout(renderArrows, 100));
+
+    // --- 5. ІНСПЕКТОР ВЛАСТИВОСТЕЙ ВУЗЛА ---
+    const inspector = document.getElementById('inspector');
+    const inputNodeText = document.getElementById('node-text');
+    const inputNodeLink = document.getElementById('node-link');
+    const inputNodeNote = document.getElementById('node-note');
+
+    function openInspector(node) {
+      selectedNode = node;
+      if (!selectedNode) return;
+
+      const meta = nodeMeta[node.id] || { note: '', link: '', bgColor: '' };
+      inputNodeText.value = node.topic.replace(/^🔗\s*/, '');
+      inputNodeLink.value = meta.link || '';
+      inputNodeNote.value = meta.note || '';
+      inspector.classList.add('open');
+    }
+
+    function closeInspector() {
+      inspector.classList.remove('open');
+      selectedNode = null;
+    }
+
+    document.getElementById('btn-close-inspector').addEventListener('click', closeInspector);
+
+    // Зміна тексту вузла
+    inputNodeText.addEventListener('input', (e) => {
+      if (!selectedNode) return;
+      const meta = nodeMeta[selectedNode.id] || {};
+      const prefix = meta.link ? '🔗 ' : '';
+      jm.update_node(selectedNode.id, prefix + e.target.value);
+    });
+
+    // Зміна посилання
+    inputNodeLink.addEventListener('input', (e) => {
+      if (!selectedNode) return;
+      if (!nodeMeta[selectedNode.id]) nodeMeta[selectedNode.id] = {};
+      nodeMeta[selectedNode.id].link = e.target.value.trim();
+      const rawText = inputNodeText.value;
+      jm.update_node(selectedNode.id, (nodeMeta[selectedNode.id].link ? '🔗 ' : '') + rawText);
+    });
+
+    document.getElementById('btn-open-link').addEventListener('click', () => {
+      if (inputNodeLink.value) window.open(inputNodeLink.value, '_blank');
+    });
+
+    // Зміна нотатки
+    inputNodeNote.addEventListener('input', (e) => {
+      if (!selectedNode) return;
+      if (!nodeMeta[selectedNode.id]) nodeMeta[selectedNode.id] = {};
+      nodeMeta[selectedNode.id].note = e.target.value;
+    });
+
+    // Палітра кольорів
+    document.querySelectorAll('.color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        if (!selectedNode) return;
+        const color = swatch.dataset.color;
+        if (!nodeMeta[selectedNode.id]) nodeMeta[selectedNode.id] = {};
+        nodeMeta[selectedNode.id].bgColor = color;
+        jm.set_node_color(selectedNode.id, color, null);
+      });
+    });
+
+    // Емодзі-бейджі
+    document.querySelectorAll('.emoji-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!selectedNode) return;
+        const emoji = btn.dataset.emoji;
+        let cleanText = inputNodeText.value.replace(/^[🔥💡🚀📌✅⚠️]\s*/, '');
+        inputNodeText.value = emoji ? `${emoji} ${cleanText}` : cleanText;
+        inputNodeText.dispatchEvent(new Event('input'));
+      });
+    });
+
+    // Вибір вузла кліком
+    document.addEventListener('click', (e) => {
+      const nodeEl = e.target.closest('jmnode');
+      if (nodeEl) {
+        const nodeId = nodeEl.getAttribute('nodeid');
+        const node = jm.get_node(nodeId);
+
+        // Якщо активний режим створення стрілки
+        if (linkingSourceNode) {
+          if (linkingSourceNode.id !== nodeId) {
+            crossLinks.push({ from: linkingSourceNode.id, to: nodeId });
+            renderArrows();
+          }
+          linkingSourceNode = null;
+          document.getElementById('link-banner').style.display = 'none';
+          return;
+        }
+
+        openInspector(node);
       }
     });
 
-    // Додати дочірній вузол
+    // Кнопка створення стрілки
+    document.getElementById('btn-link-nodes').addEventListener('click', () => {
+      if (!selectedNode) return;
+      linkingSourceNode = selectedNode;
+      document.getElementById('link-banner').style.display = 'block';
+    });
+
+    // Видалення стрілок для вузла
+    document.getElementById('btn-clear-arrows').addEventListener('click', () => {
+      if (!selectedNode) return;
+      crossLinks = crossLinks.filter(l => l.from !== selectedNode.id);
+      renderArrows();
+    });
+
+    // --- 6. ДОДАВАННЯ ТА ВИДАЛЕННЯ ВУЗЛІВ ---
     document.getElementById('btn-add-child').addEventListener('click', () => {
-      const selected = jm.get_selected_node();
-      if (!selected) {
-        alert('Спочатку виберіть кліком вузол, до якого хочете додати підпункт.');
-        return;
-      }
-      const nodeid = 'node_' + Math.random().toString(36).substring(2, 8);
-      jm.add_node(selected, nodeid, 'Новий вузол');
-      autoSave();
+      const sel = jm.get_selected_node();
+      if (!sel) return alert('Оберіть вузол');
+      const id = 'node_' + Math.random().toString(36).substring(2, 8);
+      jm.add_node(sel, id, 'Нова підтема');
+      renderArrows();
     });
 
-    // Видалити вузол
     document.getElementById('btn-delete').addEventListener('click', () => {
-      const selected = jm.get_selected_node();
-      if (!selected) {
-        alert('Виберіть вузол для видалення.');
-        return;
-      }
-      if (selected.isroot) {
-        alert('Неможливо видалити головний корінь карти.');
-        return;
-      }
-      jm.remove_node(selected);
-      autoSave();
+      const sel = jm.get_selected_node();
+      if (!sel || sel.isroot) return alert('Корінь видалити не можна');
+      jm.remove_node(sel);
+      closeInspector();
+      renderArrows();
     });
 
-    // Відкриття .mm файлу
+    // --- 7. ЕКСПОРТ У РІЗНІ ФОРМАТИ ---
+    function downloadBlob(content, filename, mime) {
+      const blob = new Blob([content], { type: mime });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+
+    // 1. Експорт .mm
+    document.getElementById('btn-save').addEventListener('click', () => {
+      downloadBlob(generateMmXml(), currentFileName, 'application/x-freemind;charset=utf-8');
+    });
+    document.getElementById('exp-mm').addEventListener('click', () => {
+      downloadBlob(generateMmXml(), currentFileName, 'application/x-freemind;charset=utf-8');
+    });
+
+    // 2. Експорт Markdown (.md)
+    document.getElementById('exp-md').addEventListener('click', () => {
+      function nodeToMd(node, depth = 1) {
+        const meta = nodeMeta[node.id] || {};
+        const prefix = '#'.repeat(Math.min(depth, 6));
+        let md = `${prefix} ${node.topic}\n`;
+        if (meta.link) md += `🔗 [Посилання](${meta.link})\n\n`;
+        if (meta.note) md += `> ${meta.note}\n\n`;
+        (node.children || []).forEach(child => {
+          md += nodeToMd(child, depth + 1);
+        });
+        return md;
+      }
+      downloadBlob(nodeToMd(jm.get_root()), 'mindmap.md', 'text/markdown;charset=utf-8');
+    });
+
+    // 3. Експорт Word (.doc)
+    document.getElementById('exp-doc').addEventListener('click', () => {
+      function nodeToHtmlDoc(node, depth = 1) {
+        const meta = nodeMeta[node.id] || {};
+        let h = `<h${Math.min(depth, 4)}>${node.topic}</h${Math.min(depth, 4)}>`;
+        if (meta.link) h += `<p><a href="${meta.link}">Посилання</a></p>`;
+        if (meta.note) h += `<blockquote>${meta.note}</blockquote>`;
+        (node.children || []).forEach(c => h += nodeToHtmlDoc(c, depth + 1));
+        return h;
+      }
+      const docHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'><head><meta charset='utf-8'></head><body>${nodeToHtmlDoc(jm.get_root())}</body></html>`;
+      downloadBlob(docHtml, 'mindmap.doc', 'application/msword;charset=utf-8');
+    });
+
+    // 4. Експорт веб-сторінки (.html)
+    document.getElementById('exp-html').addEventListener('click', () => {
+      const standalone = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>MindMap Export</title><style>body{font-family:sans-serif;padding:30px;line-height:1.6;}li{margin:8px 0;}</style></head><body><h1>${jm.get_root().topic}</h1><ul>${getHtmlTree(jm.get_root())}</ul></body></html>`;
+      function getHtmlTree(node) {
+        let res = `<li><b>${node.topic}</b>`;
+        const meta = nodeMeta[node.id];
+        if (meta?.note) res += `<p><i>${meta.note}</i></p>`;
+        if (node.children?.length) res += `<ul>${node.children.map(getHtmlTree).join('')}</ul>`;
+        return res + '</li>';
+      }
+      downloadBlob(standalone, 'mindmap_report.html', 'text/html;charset=utf-8');
+    });
+
+    // 5. Експорт PNG
+    document.getElementById('exp-png').addEventListener('click', () => {
+      const canvas = document.querySelector('#jsmind_container canvas');
+      if (!canvas) return alert('Помилка рендеру Canvas');
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'mindmap.png';
+      a.click();
+    });
+
+    // 6. Друк / PDF
+    document.getElementById('exp-pdf').addEventListener('click', () => window.print());
+
+    // --- 8. ЗАВАНТАЖЕННЯ ФАЙЛІВ ---
     const fileInput = document.getElementById('file-input');
     document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
-
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       currentFileName = file.name;
       const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const xmlContent = event.target.result;
-          jm.show({ meta: { name: file.name }, format: 'freemind', data: xmlContent });
-          autoSave();
-        } catch (err) {
-          alert('Не вдалося прочитати файл .mm: перевірте, чи це валідний XML.');
-        }
-      };
+      reader.onload = ev => loadMapFromXml(ev.target.result);
       reader.readAsText(file);
     });
 
-    // Збереження .mm файлу
-    function saveMmFile() {
-      try {
-        const freemindObj = jm.get_data('freemind');
-        const xmlContent = freemindObj.data;
-        
-        const blob = new Blob([xmlContent], { type: 'application/x-freemind;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = currentFileName.endsWith('.mm') ? currentFileName : currentFileName + '.mm';
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        alert('Помилка збереження файлу: ' + err.message);
-      }
-    }
-
-    document.getElementById('btn-save').addEventListener('click', saveMmFile);
-
-    // Ctrl + S
-    window.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        saveMmFile();
-      }
-    });
-
-    // Drag and Drop
-    window.addEventListener('dragover', (e) => e.preventDefault());
-    window.addEventListener('drop', (e) => {
-      e.preventDefault();
-      if (e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        currentFileName = file.name;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          try {
-            jm.show({ meta: { name: file.name }, format: 'freemind', data: ev.target.result });
-            autoSave();
-          } catch (err) {
-            alert('Помилка відкриття перетягнутого файлу.');
-          }
-        };
-        reader.readAsText(file);
-      }
-    });
-
-    // Теми
+    // Теми (Dark / Light)
     const themeBtn = document.getElementById('btn-theme');
     let isDark = localStorage.getItem('mm_theme_dark') === 'true';
-
-    function updateTheme() {
+    function applyTheme() {
       document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-      themeBtn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" style="width:16px;height:16px;"></i>`;
+      themeBtn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" style="width:15px"></i>`;
       lucide.createIcons();
-      localStorage.setItem('mm_theme_dark', isDark);
     }
-
     themeBtn.addEventListener('click', () => {
       isDark = !isDark;
-      updateTheme();
+      localStorage.setItem('mm_theme_dark', isDark);
+      applyTheme();
     });
 
-    // Первинне завантаження іконок
-    updateTheme();
+    // Ініціалізація
+    loadMapFromXml(initialXml);
+    applyTheme();
     lucide.createIcons();
   </script>
 </body>
