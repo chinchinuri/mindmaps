@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MindMap .MM Редактор</title>
+  
+  <!-- Шрифти та іконки через CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Mind-Elixir CDN (стилі та скрипт) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-elixir/dist/MindElixir.css">
+  <script src="https://cdn.jsdelivr.net/npm/mind-elixir/dist/MindElixir.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-surface: rgba(255, 255, 255, 0.9);
+      --border-color: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #64748b;
+      --accent-color: #2563eb;
+      --accent-hover: #1d4ed8;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme='dark'] {
+      --bg-primary: #0b0f19;
+      --bg-surface: rgba(17, 24, 39, 0.9);
+      --border-color: #1f2937;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --accent-color: #3b82f6;
+      --accent-hover: #60a5fa;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Верхня плаваюча панель */
+    .toolbar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-surface);
+      backdrop-filter: blur(12px);
+      padding: 8px 16px;
+      border-radius: 40px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 14px;
+      margin-right: 8px;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: var(--accent-color);
+      color: #fff;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      background: var(--border-color);
+    }
+
+    .btn-primary {
+      background: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-icon {
+      padding: 6px 8px;
+      border-radius: 50%;
+    }
+
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border-color);
+    }
+
+    #map-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Drag & Drop */
+    .drop-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .drop-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .drop-box {
+      padding: 40px 60px;
+      background: var(--bg-surface);
+      border: 2px dashed var(--accent-color);
+      border-radius: 24px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    /* Модалка гарячих клавіш */
+    dialog {
+      margin: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      max-width: 360px;
+      width: 90%;
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(2px);
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .shortcuts-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .shortcuts-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    kbd {
+      background: var(--border-color);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Верхнє меню -->
+    <header class="toolbar">
+      <div class="brand">
+        <span>🧠 MindMap</span>
+        <span class="badge">.mm</span>
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-new" class="btn" title="Створити нову карту">
+          <i data-lucide="file-plus" style="width:16px;height:16px;"></i> Нова
+        </button>
+        <button id="btn-open" class="btn" title="Відкрити .mm файл">
+          <i data-lucide="folder-open" style="width:16px;height:16px;"></i> Відкрити
+        </button>
+        <button id="btn-save" class="btn btn-primary" title="Зберегти .mm (Ctrl+S)">
+          <i data-lucide="save" style="width:16px;height:16px;"></i> Зберегти .mm
+        </button>
+        
+        <div class="divider"></div>
+
+        <button id="btn-theme" class="btn btn-icon" title="Перемкнути тему">
+          <i data-lucide="moon" style="width:16px;height:16px;"></i>
+        </button>
+        <button id="btn-shortcuts" class="btn btn-icon" title="Гарячі клавіші">
+          <i data-lucide="keyboard" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Робоче полотно карти -->
+    <main id="map-container"></main>
+
+    <input type="file" id="file-input" accept=".mm,.xml" style="display: none;" />
+
+    <!-- Drag & Drop -->
+    <div id="drop-overlay" class="drop-overlay">
+      <div class="drop-box">
+        <i data-lucide="upload-cloud" style="width:48px;height:48px;color:var(--accent-color);margin-bottom:12px;"></i>
+        <p>Відпустіть файл <b>.mm</b> для відкриття</p>
+      </div>
+    </div>
+
+    <!-- Модалка гарячих клавіш -->
+    <dialog id="shortcuts-dialog">
+      <div class="dialog-header">
+        <h3>Гарячі клавіші</h3>
+        <button id="btn-close-dialog" class="btn-close">&times;</button>
+      </div>
+      <ul class="shortcuts-list">
+        <li><span>Дочірній вузол:</span> <kbd>Tab</kbd></li>
+        <li><span>Сусідній вузол:</span> <kbd>Enter</kbd></li>
+        <li><span>Редагувати вузол:</span> <kbd>Space</kbd> / <kbd>F2</kbd></li>
+        <li><span>Видалити вузол:</span> <kbd>Delete</kbd></li>
+        <li><span>Зберегти у .mm:</span> <kbd>Ctrl + S</kbd></li>
+        <li><span>Згорнути/розгорнути:</span> <kbd>/</kbd></li>
+      </ul>
+    </dialog>
+  </div>
+
+  <script>
+    // --- 1. ПАРСЕР ТА ГЕНЕРАТОР ФОРМАТУ .MM (FreeMind XML) ---
+    function escapeXml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+        }
+      });
+    }
+
+    function parseXmlNode(xmlNode) {
+      const text = xmlNode.getAttribute('TEXT') || 
+                   xmlNode.querySelector('richcontent')?.textContent?.trim() || 
+                   'Вузол';
+      
+      const id = xmlNode.getAttribute('ID') || 'node_' + Math.random().toString(36).substring(2, 9);
+      const childNodes = Array.from(xmlNode.children).filter(el => el.tagName.toLowerCase() === 'node');
+      
+      const nodeData = { id: id, topic: text };
+      if (xmlNode.getAttribute('FOLDED') === 'true') {
+        nodeData.expanded = false;
+      }
+      if (childNodes.length > 0) {
+        nodeData.children = childNodes.map(parseXmlNode);
+      }
+      return nodeData;
+    }
+
+    function mmToMindElixir(xmlString) {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+      if (xmlDoc.querySelector('parsererror')) {
+        throw new Error('Некоректний XML формат');
+      }
+      const rootXmlNode = xmlDoc.querySelector('map > node');
+      if (!rootXmlNode) throw new Error('Кореневий тег <map><node> не знайдено');
+      return {
+        nodeData: parseXmlNode(rootXmlNode),
+        arrows: []
+      };
+    }
+
+    function nodeToXml(node) {
+      const id = escapeXml(node.id || 'id_' + Math.random().toString(36).substring(2, 8));
+      const topic = escapeXml(node.topic || '');
+      const folded = node.expanded === false ? ' FOLDED="true"' : '';
+      let xml = `<node ID="${id}" TEXT="${topic}"${folded}>`;
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          xml += '\n' + nodeToXml(child);
+        }
+      }
+      xml += '</node>';
+      return xml;
+    }
+
+    function mindElixirToMm(meData) {
+      return `<?xml version="1.0" encoding="UTF-8"?>\n<map version="1.0.1">\n${nodeToXml(meData.nodeData)}\n</map>`;
+    }
+
+    // --- 2. ІНІЦІАЛІЗАЦІЯ РЕДАКТОРА ---
+    const defaultData = {
+      nodeData: {
+        id: 'root',
+        topic: 'Головна тема',
+        children: [
+          { id: 'sub_1', topic: 'Ідея 1' },
+          { id: 'sub_2', topic: 'Ідея 2', children: [{ id: 'sub_2_1', topic: 'Деталі' }] },
+          { id: 'sub_3', topic: 'Ідея 3' }
+        ]
+      }
+    };
+
+    let currentFileName = 'mindmap.mm';
+    const savedData = localStorage.getItem('vanilla_mm_map');
+    const initialData = savedData ? JSON.parse(savedData) : defaultData;
+
+    const me = new MindElixir({
+      el: '#map-container',
+      direction: MindElixir.SIDE,
+      draggable: true,
+      contextMenu: true,
+      toolBar: false,
+      nodeMenu: true,
+      keypress: true,
+    });
+
+    me.init(initialData);
+
+    // Автозбереження у LocalStorage
+    me.bus.addListener('operation', () => {
+      localStorage.setItem('vanilla_mm_map', JSON.stringify(me.getData()));
+    });
+
+    // --- 3. КЕРУВАННЯ ФАЙЛАМИ ---
+    document.getElementById('btn-new').addEventListener('click', () => {
+      if (confirm('Створити нову карту? Незбережені дані буде скинуто.')) {
+        me.init(defaultData);
+        currentFileName = 'mindmap.mm';
+        localStorage.removeItem('vanilla_mm_map');
+      }
+    });
+
+    const fileInput = document.getElementById('file-input');
+    document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
+
+    function loadFile(file) {
+      currentFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = mmToMindElixir(e.target.result);
+          me.init(parsed);
+          localStorage.setItem('vanilla_mm_map', JSON.stringify(parsed));
+        } catch (err) {
+          alert('Помилка відкриття файлу: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) loadFile(e.target.files[0]);
+    });
+
+    // Збереження .mm файлу
+    async function saveFile() {
+      const xml = mindElixirToMm(me.getData());
+      
+      // Спроба використати сучасний нативний діалог збереження
+      if (window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: currentFileName,
+            types: [{ description: 'FreeMind (.mm)', accept: { 'text/xml': ['.mm', '.xml'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(xml);
+          await writable.close();
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+        }
+      }
+
+      // Звичайне завантаження через blob
+      const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentFileName.endsWith('.mm') ? currentFileName : currentFileName + '.mm';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btn-save').addEventListener('click', saveFile);
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+    });
+
+    // --- 4. DRAG & DROP ---
+    const dropOverlay = document.getElementById('drop-overlay');
+    window.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.classList.add('active'); });
+    dropOverlay.addEventListener('dragleave', () => dropOverlay.classList.remove('active'));
+    dropOverlay.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropOverlay.classList.remove('active');
+      if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+    });
+
+    // --- 5. ТЕМА І МОДАЛКА ---
+    const themeBtn = document.getElementById('btn-theme');
+    let isDark = localStorage.getItem('mm_theme') === 'dark';
+
+    function applyTheme() {
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      themeBtn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" style="width:16px;height:16px;"></i>`;
+      lucide.createIcons();
+      localStorage.setItem('mm_theme', isDark ? 'dark' : 'light');
+    }
+
+    themeBtn.addEventListener('click', () => {
+      isDark = !isDark;
+      applyTheme();
+    });
+
+    const shortcutsDialog = document.getElementById('shortcuts-dialog');
+    document.getElementById('btn-shortcuts').addEventListener('click', () => shortcutsDialog.showModal());
+    document.getElementById('btn-close-dialog').addEventListener('click', () => shortcutsDialog.close());
+
+    // Перший запуск
+    applyTheme();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
